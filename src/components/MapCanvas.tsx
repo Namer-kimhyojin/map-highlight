@@ -191,8 +191,40 @@ export function MapCanvas({ onAdminDataLoaded, onIndustrialParksLoaded, onStatus
 
   function industrialParkStyle(feature: FeatureLike) {
     const id = String(feature.get('id') ?? '');
+    const kind = feature.get('kind') as 'area' | 'marker' | undefined;
+    const displayMode = project.industrialLayer.displayMode;
+    if (kind === 'area' && displayMode === 'marker') return undefined;
+    if (kind === 'marker' && displayMode === 'area') return undefined;
+
     const selected = project.industrialLayer.selectedId === id;
     const markerColor = hexToRgba(project.industrialLayer.markerColor, selected ? 1 : project.industrialLayer.markerOpacity);
+    if (kind === 'area') {
+      const areaStyle = new Style({
+        fill: new Fill({ color: hexToRgba(project.industrialLayer.markerColor, selected ? 0.26 : 0.14) }),
+        stroke: new Stroke({
+          color: hexToRgba(project.industrialLayer.markerColor, selected ? 0.98 : 0.74),
+          width: selected ? 3.2 : 2,
+          lineDash: selected ? undefined : [7, 4],
+        }),
+        text: project.industrialLayer.labelVisible || selected
+          ? new Text({
+              text: String(feature.get('name') ?? ''),
+              font: `${selected ? '800' : '700'} ${selected ? 13 : 11}px Pretendard, Arial, sans-serif`,
+              fill: new Fill({ color: selected ? '#0F172A' : '#334155' }),
+              stroke: new Stroke({ color: 'rgba(255,255,255,0.96)', width: 4 }),
+              padding: [2, 4, 2, 4],
+            })
+          : undefined,
+      });
+      if (!selected) return areaStyle;
+      return [
+        new Style({
+          stroke: new Stroke({ color: 'rgba(255,255,255,0.95)', width: 7 }),
+        }),
+        areaStyle,
+      ];
+    }
+
     const haloColor = selected ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.96)';
     return new Style({
       image: new CircleStyle({
@@ -433,16 +465,27 @@ export function MapCanvas({ onAdminDataLoaded, onIndustrialParksLoaded, onStatus
         if (cancelled) return;
         source.clear();
         parks.forEach((park) => {
-          const feature = new Feature({
+          if (park.geometry.type !== 'Point') {
+            const areaFeature = geoJson.readFeature(
+              { type: 'Feature', properties: { id: park.id, kind: 'area', name: park.name, type: park.type, address: park.address, municipality: park.municipality }, geometry: park.geometry },
+              { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' },
+            ) as Feature;
+            areaFeature.set('id', park.id);
+            areaFeature.set('kind', 'area');
+            source.addFeature(areaFeature);
+          }
+          const markerFeature = new Feature({
             geometry: new Point(fromLonLat(park.coordinates)),
             id: park.id,
+            kind: 'marker',
             name: park.name,
             type: park.type,
             address: park.address,
             municipality: park.municipality,
           });
-          feature.set('id', park.id);
-          source.addFeature(feature);
+          markerFeature.set('id', park.id);
+          markerFeature.set('kind', 'marker');
+          source.addFeature(markerFeature);
         });
         onIndustrialParksLoaded(parks);
       })

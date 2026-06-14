@@ -133,6 +133,7 @@ export interface ProjectState {
   industrialLayer: {
     visible: boolean;
     selectedId?: string;
+    displayMode: 'marker' | 'area' | 'both';
     markerColor: string;
     markerOpacity: number;
     labelVisible: boolean;
@@ -151,6 +152,7 @@ export interface IndustrialParkInfo {
   municipality: string;
   status?: string;
   coordinates: [number, number];
+  geometry: GeoJSON.Geometry;
 }
 
 export interface AdminFeatureInfo {

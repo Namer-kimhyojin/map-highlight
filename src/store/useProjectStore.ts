@@ -94,6 +94,7 @@ export const defaultProjectState: ProjectState = {
   industrialLayer: {
     visible: true,
     selectedId: undefined,
+    displayMode: 'marker',
     markerColor: '#0EA5A8',
     markerOpacity: 0.95,
     labelVisible: true,

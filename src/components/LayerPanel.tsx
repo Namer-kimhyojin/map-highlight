@@ -265,7 +265,15 @@ export function LayerPanel({ adminGeoJson, industrialParks }: LayerPanelProps) {
           <section className="selection-overview industrial-overview">
             <span className="panel-kicker">산업단지 위치</span>
             <strong>{selectedIndustrialPark?.name ?? '선택 없음'}</strong>
-            <small>{industrialParks.length.toLocaleString()}개 산업단지 데이터 · {project.industrialLayer.visible ? '지도 표시중' : '숨김'}</small>
+            <small>
+              {industrialParks.length.toLocaleString()}개 산업단지 데이터 · {project.industrialLayer.visible ? '지도 표시중' : '숨김'} · {
+                project.industrialLayer.displayMode === 'marker'
+                  ? '마커'
+                  : project.industrialLayer.displayMode === 'area'
+                    ? '지역/지구'
+                    : '마커+지역'
+              }
+            </small>
             <div className="selection-actions">
               <button onClick={toggleIndustrialVisible}>
                 {project.industrialLayer.visible ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -318,8 +326,28 @@ export function LayerPanel({ adminGeoJson, industrialParks }: LayerPanelProps) {
 
           <section>
             <div className="section-title-row">
-              <h2>마커 설정</h2>
+              <h2>표시 방식</h2>
               <Map size={16} />
+            </div>
+            <div className="segmented industrial-mode">
+              <button
+                className={project.industrialLayer.displayMode === 'marker' ? 'active' : ''}
+                onClick={() => updateIndustrialLayer({ displayMode: 'marker' })}
+              >
+                마커
+              </button>
+              <button
+                className={project.industrialLayer.displayMode === 'area' ? 'active' : ''}
+                onClick={() => updateIndustrialLayer({ displayMode: 'area' })}
+              >
+                지역/지구
+              </button>
+              <button
+                className={project.industrialLayer.displayMode === 'both' ? 'active' : ''}
+                onClick={() => updateIndustrialLayer({ displayMode: 'both' })}
+              >
+                둘 다
+              </button>
             </div>
             <label className="checkbox-row">
               <input
@@ -333,7 +361,7 @@ export function LayerPanel({ adminGeoJson, industrialParks }: LayerPanelProps) {
               <label>마커색<input type="color" value={project.industrialLayer.markerColor} onChange={(event) => updateIndustrialLayer({ markerColor: event.target.value })} /></label>
               <label>투명도<input type="range" min="0.35" max="1" step="0.05" value={project.industrialLayer.markerOpacity} onChange={(event) => updateIndustrialLayer({ markerOpacity: Number(event.target.value) })} /></label>
             </div>
-            <p className="panel-hint">현재 데이터는 포항 주요 산업단지 위치 샘플입니다. 전체 전국 데이터로 교체할 수 있도록 별도 파일로 분리되어 있습니다.</p>
+            <p className="panel-hint">현재 면 형상은 포항 주요 산업단지 표시용 샘플입니다. 실제 경계 GeoJSON으로 교체하면 지역/지구 표시가 그대로 정밀해집니다.</p>
           </section>
         </>
       )}
