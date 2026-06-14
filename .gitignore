@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+_leaflet_preview/
+_leaflet_text.txt
+.DS_Store
