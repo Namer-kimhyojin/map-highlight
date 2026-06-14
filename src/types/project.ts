@@ -130,10 +130,27 @@ export interface ProjectState {
     labelBackgroundColor: string;
     labelBackgroundOpacity: number;
   };
+  industrialLayer: {
+    visible: boolean;
+    selectedId?: string;
+    markerColor: string;
+    markerOpacity: number;
+    labelVisible: boolean;
+  };
   customShapes: CustomShape[];
   labels: LabelConfig;
   export: ExportConfig;
   recentStyles: StyleConfig[];
+}
+
+export interface IndustrialParkInfo {
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  municipality: string;
+  status?: string;
+  coordinates: [number, number];
 }
 
 export interface AdminFeatureInfo {

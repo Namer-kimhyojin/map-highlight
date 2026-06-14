@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import Collection from 'ol/Collection';
 import Feature from 'ol/Feature';
 import GeoJSON from 'ol/format/GeoJSON';
+import Point from 'ol/geom/Point';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { union } from '@turf/union';
 import { fromLonLat, toLonLat } from 'ol/proj';
-import { Fill, Stroke, Style } from 'ol/style';
+import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
 import Text from 'ol/style/Text';
 import type React from 'react';
 import type Map from 'ol/Map';
@@ -23,16 +24,19 @@ import { createMaskLayer, updateMaskLayer } from '../map/maskLayer';
 import { createPointModifyInteraction } from '../map/modifyInteraction';
 import { useProjectStore } from '../store/useProjectStore';
 import type { AdminFeatureCollection } from '../types/geojson';
+import type { IndustrialParkInfo } from '../types/project';
 import type { MapStatus } from '../types/map';
 import { shapeDefaultStyle } from '../store/useProjectStore';
 import { getFeatureCode, getFeatureName } from '../utils/geojson';
 import { loadAdminGeoJson } from '../utils/geojson';
 import { hexToRgba } from '../utils/color';
 import { createPatternCanvas, getStrokeDash, isDoubleStroke } from '../utils/stylePatterns';
+import { loadIndustrialParks } from '../utils/industrialParks';
 import 'ol/ol.css';
 
 interface MapCanvasProps {
   onAdminDataLoaded: (data: AdminFeatureCollection | null) => void;
+  onIndustrialParksLoaded: (data: IndustrialParkInfo[]) => void;
   onStatusChange: (status: MapStatus) => void;
   mapElementRef: React.MutableRefObject<HTMLDivElement | null>;
 }
@@ -111,13 +115,14 @@ function shapeSelectionStyle(feature: FeatureLike, selectedShapeIds: string[], p
   return styles;
 }
 
-export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: MapCanvasProps) {
+export function MapCanvas({ onAdminDataLoaded, onIndustrialParksLoaded, onStatusChange, mapElementRef }: MapCanvasProps) {
   const localRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const baseLayerRefs = useRef<TileLayer[]>([]);
   const adminLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const selectedFillLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const compareLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const industrialLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const shapeLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const maskLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -143,6 +148,7 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
   const setActiveShape = useProjectStore((state) => state.setActiveShape);
   const toggleSelectedShape = useProjectStore((state) => state.toggleSelectedShape);
   const setActiveAdminCode = useProjectStore((state) => state.setActiveAdminCode);
+  const selectIndustrialPark = useProjectStore((state) => state.selectIndustrialPark);
   const mapToneFilter = project.map.tone.preserveOriginalColors
     ? 'none'
     : [
@@ -183,6 +189,30 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
     return true;
   }
 
+  function industrialParkStyle(feature: FeatureLike) {
+    const id = String(feature.get('id') ?? '');
+    const selected = project.industrialLayer.selectedId === id;
+    const markerColor = hexToRgba(project.industrialLayer.markerColor, selected ? 1 : project.industrialLayer.markerOpacity);
+    const haloColor = selected ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.96)';
+    return new Style({
+      image: new CircleStyle({
+        radius: selected ? 9 : 6,
+        fill: new Fill({ color: markerColor }),
+        stroke: new Stroke({ color: haloColor, width: selected ? 4 : 2.5 }),
+      }),
+      text: project.industrialLayer.labelVisible || selected
+        ? new Text({
+            text: String(feature.get('name') ?? ''),
+            offsetY: -18,
+            font: `${selected ? '800' : '700'} ${selected ? 13 : 11}px Pretendard, Arial, sans-serif`,
+            fill: new Fill({ color: selected ? '#0F172A' : '#334155' }),
+            stroke: new Stroke({ color: 'rgba(255,255,255,0.95)', width: 4 }),
+            padding: [2, 4, 2, 4],
+          })
+        : undefined,
+    });
+  }
+
   useEffect(() => {
     adminLevelRef.current = project.adminLayer.level;
   }, [project.adminLayer.level]);
@@ -203,6 +233,11 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
       },
     });
     const compareLayer = new VectorLayer({ source: new VectorSource(), visible: project.compareLayer.enabled });
+    const industrialLayer = new VectorLayer({
+      source: new VectorSource(),
+      visible: project.industrialLayer.visible,
+      style: industrialParkStyle,
+    });
     const shapeLayer = new VectorLayer({
       source: new VectorSource(),
       style: (feature) => shapeSelectionStyle(feature, selectedShapeIds, project),
@@ -220,11 +255,12 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
       ],
     });
     const maskLayer = createMaskLayer(project);
-    const map = initMap(localRef.current, project, [...baseLayers, compareLayer, selectedFillLayer, adminLayer, shapeLayer, maskLayer, hoverLayer]);
+    const map = initMap(localRef.current, project, [...baseLayers, compareLayer, selectedFillLayer, adminLayer, industrialLayer, shapeLayer, maskLayer, hoverLayer]);
     baseLayerRefs.current = baseLayers;
     adminLayerRef.current = adminLayer;
     selectedFillLayerRef.current = selectedFillLayer;
     compareLayerRef.current = compareLayer;
+    industrialLayerRef.current = industrialLayer;
     shapeLayerRef.current = shapeLayer;
     hoverLayerRef.current = hoverLayer;
     maskLayerRef.current = maskLayer;
@@ -252,6 +288,19 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
         return false;
       });
       if (handledShape || drawMode) return;
+      let handledIndustrialPark = false;
+      map.forEachFeatureAtPixel(event.pixel, (featureLike, layer) => {
+        if (layer !== industrialLayer) return false;
+        const id = String((featureLike as Feature).get('id') ?? '');
+        if (id) {
+          selectIndustrialPark(id);
+          setActiveShape(undefined);
+          setActiveAdminCode(undefined);
+          handledIndustrialPark = true;
+        }
+        return true;
+      }, { hitTolerance: 8 });
+      if (handledIndustrialPark) return;
       map.forEachFeatureAtPixel(event.pixel, (featureLike, layer) => {
         if (layer !== adminLayer) return false;
         const code = getFeatureCode((featureLike as Feature).getProperties());
@@ -376,6 +425,34 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const source = industrialLayerRef.current?.getSource();
+    if (!source) return;
+    loadIndustrialParks()
+      .then((parks) => {
+        if (cancelled) return;
+        source.clear();
+        parks.forEach((park) => {
+          const feature = new Feature({
+            geometry: new Point(fromLonLat(park.coordinates)),
+            id: park.id,
+            name: park.name,
+            type: park.type,
+            address: park.address,
+            municipality: park.municipality,
+          });
+          feature.set('id', park.id);
+          source.addFeature(feature);
+        });
+        onIndustrialParksLoaded(parks);
+      })
+      .catch(() => onIndustrialParksLoaded([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [onIndustrialParksLoaded]);
+
+  useEffect(() => {
     function closeContextMenu() {
       setContextMenu(null);
     }
@@ -470,6 +547,9 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
         : undefined,
     }));
     compareLayerRef.current?.changed();
+    industrialLayerRef.current?.setVisible(project.industrialLayer.visible);
+    industrialLayerRef.current?.setStyle(industrialParkStyle);
+    industrialLayerRef.current?.changed();
     const highlightedCodes = new Set([...project.adminLayer.selectedCodes, ...Object.keys(project.adminLayer.regionStyles)]);
     const selectedFeatures =
       adminLayerRef.current
@@ -513,7 +593,7 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
     }
     selectedFillLayerRef.current?.changed();
     if (maskLayerRef.current) updateMaskLayer(maskLayerRef.current as VectorLayer<VectorSource<FeatureLike>>, selectedFeatures, project);
-  }, [project.adminLayer, project.highlight, project.labels, project.compareLayer]);
+  }, [project.adminLayer, project.highlight, project.labels, project.compareLayer, project.industrialLayer]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -634,6 +714,15 @@ export function MapCanvas({ onAdminDataLoaded, onStatusChange, mapElementRef }: 
       pendingFitSelectedRef.current = false;
     }
   }, [fitSelectedRequest, selectedCodeKey]);
+
+  useEffect(() => {
+    const selectedId = project.industrialLayer.selectedId;
+    if (!selectedId || !mapRef.current) return;
+    const feature = industrialLayerRef.current?.getSource()?.getFeatures().find((item) => item.get('id') === selectedId);
+    const geometry = feature?.getGeometry();
+    if (!geometry) return;
+    mapRef.current.getView().fit(geometry.getExtent(), { padding: [120, 120, 120, 120], duration: 420, maxZoom: 13 });
+  }, [project.industrialLayer.selectedId]);
 
   function closeContextMenu() {
     setContextMenu(null);

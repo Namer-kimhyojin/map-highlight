@@ -1,0 +1,78 @@
+{
+  "type": "FeatureCollection",
+  "name": "pohang_industrial_parks_sample",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pohang-steel",
+        "name": "포항철강산업단지",
+        "type": "국가산업단지",
+        "address": "경상북도 포항시 남구 대송면·괴동동 일원",
+        "municipality": "포항시 남구",
+        "status": "운영"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.3666, 35.9905] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pohang-bluevalley",
+        "name": "포항블루밸리국가산업단지",
+        "type": "국가산업단지",
+        "address": "경상북도 포항시 남구 동해면·장기면 일원",
+        "municipality": "포항시 남구",
+        "status": "조성·분양"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.4852, 35.9291] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "yeongilman",
+        "name": "영일만일반산업단지",
+        "type": "일반산업단지",
+        "address": "경상북도 포항시 북구 흥해읍 영일만항 일원",
+        "municipality": "포항시 북구",
+        "status": "운영"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.4194, 36.1066] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "pohang-techno",
+        "name": "포항융합기술산업지구",
+        "type": "경제자유구역",
+        "address": "경상북도 포항시 북구 흥해읍 대련리·이인리 일원",
+        "municipality": "포항시 북구",
+        "status": "조성·운영"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.3207, 36.0698] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "guryongpo",
+        "name": "구룡포농공단지",
+        "type": "농공단지",
+        "address": "경상북도 포항시 남구 구룡포읍 일원",
+        "municipality": "포항시 남구",
+        "status": "운영"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.5535, 35.9898] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "cheongha",
+        "name": "청하농공단지",
+        "type": "농공단지",
+        "address": "경상북도 포항시 북구 청하면 일원",
+        "municipality": "포항시 북구",
+        "status": "운영"
+      },
+      "geometry": { "type": "Point", "coordinates": [129.3503, 36.1932] }
+    }
+  ]
+}

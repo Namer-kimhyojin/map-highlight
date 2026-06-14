@@ -91,6 +91,13 @@ export const defaultProjectState: ProjectState = {
     labelBackgroundColor: '#FFFFFF',
     labelBackgroundOpacity: 0.9,
   },
+  industrialLayer: {
+    visible: true,
+    selectedId: undefined,
+    markerColor: '#0EA5A8',
+    markerOpacity: 0.95,
+    labelVisible: true,
+  },
   customShapes: [],
   labels: {
     enabled: true,
@@ -161,11 +168,15 @@ interface ProjectStore {
   clearShapeSelection: () => void;
   setActiveAdminCode: (code?: string) => void;
   requestFitSelected: () => void;
+  toggleIndustrialVisible: () => void;
+  updateIndustrialLayer: (industrialLayer: Partial<ProjectState['industrialLayer']>) => void;
+  selectIndustrialPark: (id?: string) => void;
 }
 
 function normalizeProject(project: ProjectState): ProjectState {
   const labels = { ...defaultProjectState.labels, ...project.labels };
   const compareLayer = { ...defaultProjectState.compareLayer, ...project.compareLayer };
+  const industrialLayer = { ...defaultProjectState.industrialLayer, ...project.industrialLayer };
   (Object.keys(defaultProjectState.labels) as Array<keyof typeof defaultProjectState.labels>).forEach((key) => {
     if (labels[key] === undefined) labels[key] = defaultProjectState.labels[key] as never;
   });
@@ -193,6 +204,7 @@ function normalizeProject(project: ProjectState): ProjectState {
       ),
     },
     compareLayer,
+    industrialLayer,
     labels,
     export: { ...defaultProjectState.export, ...project.export },
     recentStyles: project.recentStyles ?? [],
@@ -412,4 +424,10 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   clearShapeSelection: () => set({ activeShapeId: undefined, selectedShapeIds: [], shapePointEditMode: false }),
   setActiveAdminCode: (activeAdminCode) => set({ activeAdminCode }),
   requestFitSelected: () => set((state) => ({ fitSelectedRequest: state.fitSelectedRequest + 1 })),
+  toggleIndustrialVisible: () =>
+    set(({ project }) => withAutosave({ ...project, industrialLayer: { ...project.industrialLayer, visible: !project.industrialLayer.visible } })),
+  updateIndustrialLayer: (industrialLayer) =>
+    set(({ project }) => withAutosave({ ...project, industrialLayer: { ...project.industrialLayer, ...industrialLayer } })),
+  selectIndustrialPark: (selectedId) =>
+    set(({ project }) => withAutosave({ ...project, industrialLayer: { ...project.industrialLayer, selectedId, visible: true } })),
 }));

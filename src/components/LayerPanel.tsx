@@ -1,15 +1,17 @@
-import { Eye, EyeOff, GitCompare, LocateFixed, Map, Search, Trash2, X } from 'lucide-react';
+import { Eye, EyeOff, Factory, GitCompare, LocateFixed, Map, Search, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { AdminFeatureCollection } from '../types/geojson';
-import type { AdminFeatureInfo, BackgroundContentConfig, BaseMapType } from '../types/project';
+import type { AdminFeatureInfo, BackgroundContentConfig, BaseMapType, IndustrialParkInfo } from '../types/project';
 import { useProjectStore } from '../store/useProjectStore';
 import { getFeatureCode, getFeatureName } from '../utils/geojson';
 import type { AdminFeatureGroup, AdminSearchResult } from '../utils/adminGrouping';
 import { searchAdminFeatures } from '../utils/adminGrouping';
 import { hexToRgba } from '../utils/color';
+import { searchIndustrialParks } from '../utils/industrialParks';
 
 interface LayerPanelProps {
   adminGeoJson: AdminFeatureCollection | null;
+  industrialParks: IndustrialParkInfo[];
 }
 
 const baseMapOptions: Array<{ type: BaseMapType; label: string; group: string }> = [
@@ -33,10 +35,11 @@ const mapTonePresets = [
   { label: '따뜻', tone: { preserveOriginalColors: false, brightness: 1.05, contrast: 1.02, saturation: 0.95, grayscale: 0, sepia: 0.18, hueRotate: -6 } },
 ];
 
-type LeftPanelTab = 'regions' | 'labels' | 'basemap';
+type LeftPanelTab = 'regions' | 'industrial' | 'labels' | 'basemap';
 
-export function LayerPanel({ adminGeoJson }: LayerPanelProps) {
+export function LayerPanel({ adminGeoJson, industrialParks }: LayerPanelProps) {
   const [query, setQuery] = useState('');
+  const [industrialQuery, setIndustrialQuery] = useState('');
   const [activeTab, setActiveTab] = useState<LeftPanelTab>('regions');
   const project = useProjectStore((state) => state.project);
   const setAdminLevel = useProjectStore((state) => state.setAdminLevel);
@@ -49,6 +52,9 @@ export function LayerPanel({ adminGeoJson }: LayerPanelProps) {
   const setActiveAdminCode = useProjectStore((state) => state.setActiveAdminCode);
   const updateCompareLayer = useProjectStore((state) => state.updateCompareLayer);
   const updateLabels = useProjectStore((state) => state.updateLabels);
+  const toggleIndustrialVisible = useProjectStore((state) => state.toggleIndustrialVisible);
+  const updateIndustrialLayer = useProjectStore((state) => state.updateIndustrialLayer);
+  const selectIndustrialPark = useProjectStore((state) => state.selectIndustrialPark);
 
   function updateMapContent(patch: Partial<BackgroundContentConfig>) {
     setProject({ ...project, map: { ...project.map, content: { ...project.map.content, ...patch } } });
@@ -91,6 +97,10 @@ export function LayerPanel({ adminGeoJson }: LayerPanelProps) {
   const searchResults = useMemo<AdminSearchResult[]>(() => {
     return searchAdminFeatures(features, project.adminLayer.level, query);
   }, [features, project.adminLayer.level, query]);
+  const industrialResults = useMemo(() => {
+    return searchIndustrialParks(industrialParks, industrialQuery);
+  }, [industrialParks, industrialQuery]);
+  const selectedIndustrialPark = industrialParks.find((park) => park.id === project.industrialLayer.selectedId);
 
   function selectGroupOnly(group: AdminFeatureGroup) {
     setProject({
@@ -128,6 +138,10 @@ export function LayerPanel({ adminGeoJson }: LayerPanelProps) {
         <button className={activeTab === 'regions' ? 'active' : ''} onClick={() => setActiveTab('regions')}>
           <Search size={14} />
           지역
+        </button>
+        <button className={activeTab === 'industrial' ? 'active' : ''} onClick={() => setActiveTab('industrial')}>
+          <Factory size={14} />
+          산단
         </button>
         <button className={activeTab === 'labels' ? 'active' : ''} onClick={() => setActiveTab('labels')}>
           <Eye size={14} />
@@ -242,6 +256,84 @@ export function LayerPanel({ adminGeoJson }: LayerPanelProps) {
                 ))
               )}
             </div>
+          </section>
+        </>
+      )}
+
+      {activeTab === 'industrial' && (
+        <>
+          <section className="selection-overview industrial-overview">
+            <span className="panel-kicker">산업단지 위치</span>
+            <strong>{selectedIndustrialPark?.name ?? '선택 없음'}</strong>
+            <small>{industrialParks.length.toLocaleString()}개 산업단지 데이터 · {project.industrialLayer.visible ? '지도 표시중' : '숨김'}</small>
+            <div className="selection-actions">
+              <button onClick={toggleIndustrialVisible}>
+                {project.industrialLayer.visible ? <EyeOff size={15} /> : <Eye size={15} />}
+                {project.industrialLayer.visible ? '숨김' : '표시'}
+              </button>
+              <button className="small-danger" onClick={() => selectIndustrialPark(undefined)} disabled={!project.industrialLayer.selectedId}>
+                <Trash2 size={14} />
+                해제
+              </button>
+            </div>
+          </section>
+
+          <section>
+            <div className="section-title-row">
+              <h2>산업단지 검색</h2>
+              <Factory size={16} />
+            </div>
+            <div className="search-box">
+              <Search size={16} />
+              <input value={industrialQuery} onChange={(event) => setIndustrialQuery(event.target.value)} placeholder="예: 블루밸리, 철강, 영일만" />
+              {industrialQuery && <button className="plain-icon" onClick={() => setIndustrialQuery('')}><X size={14} /></button>}
+            </div>
+            {industrialParks.length === 0 && (
+              <p className="empty search-empty">산업단지 데이터를 불러오는 중입니다.</p>
+            )}
+            {industrialParks.length > 0 && industrialResults.length === 0 && (
+              <p className="empty search-empty">검색 결과가 없습니다.</p>
+            )}
+            {industrialResults.length > 0 && (
+              <div className="search-results industrial-results">
+                {industrialResults.map((park) => {
+                  const selectedPark = project.industrialLayer.selectedId === park.id;
+                  return (
+                    <button
+                      key={park.id}
+                      className={selectedPark ? 'selected-result industrial-result' : 'industrial-result'}
+                      onClick={() => selectIndustrialPark(park.id)}
+                    >
+                      <span>
+                        <strong>{park.name}</strong>
+                        <small>{park.type} · {park.municipality}</small>
+                      </span>
+                      <small>{selectedPark ? '선택됨' : park.status ?? '위치 표시'}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="section-title-row">
+              <h2>마커 설정</h2>
+              <Map size={16} />
+            </div>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={project.industrialLayer.labelVisible}
+                onChange={(event) => updateIndustrialLayer({ labelVisible: event.target.checked })}
+              />
+              산업단지명 표시
+            </label>
+            <div className="form-grid compact-form">
+              <label>마커색<input type="color" value={project.industrialLayer.markerColor} onChange={(event) => updateIndustrialLayer({ markerColor: event.target.value })} /></label>
+              <label>투명도<input type="range" min="0.35" max="1" step="0.05" value={project.industrialLayer.markerOpacity} onChange={(event) => updateIndustrialLayer({ markerOpacity: Number(event.target.value) })} /></label>
+            </div>
+            <p className="panel-hint">현재 데이터는 포항 주요 산업단지 위치 샘플입니다. 전체 전국 데이터로 교체할 수 있도록 별도 파일로 분리되어 있습니다.</p>
           </section>
         </>
       )}

@@ -257,7 +257,7 @@ button:disabled {
   border-radius: 18px;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 12px;
   padding: 4px;
   position: sticky;
@@ -523,6 +523,27 @@ input[type="checkbox"] {
 .search-results button.group-result {
   background: #eef6ff;
   border-color: #93c5fd;
+}
+
+.search-results button.industrial-result {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.industrial-result > span {
+  min-width: 0;
+}
+
+.industrial-result strong {
+  color: var(--text);
+  display: block;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.industrial-overview {
+  background: #f0fdfa;
+  border-color: #99f6e4;
 }
 
 .search-results button.selected-result {

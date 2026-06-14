@@ -8,6 +8,7 @@ import { StylePanel } from './components/StylePanel';
 import { Toolbar } from './components/Toolbar';
 import type { AdminFeatureCollection } from './types/geojson';
 import type { MapStatus } from './types/map';
+import type { IndustrialParkInfo } from './types/project';
 import { useProjectStore } from './store/useProjectStore';
 import { downloadProject } from './utils/projectFile';
 import { exportMapPng } from './utils/pngExport';
@@ -17,6 +18,7 @@ import './styles.css';
 
 export default function App() {
   const [adminGeoJson, setAdminGeoJson] = useState<AdminFeatureCollection | null>(null);
+  const [industrialParks, setIndustrialParks] = useState<IndustrialParkInfo[]>([]);
   const [status, setStatus] = useState<MapStatus | null>(null);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
@@ -114,7 +116,7 @@ export default function App() {
             <button className="panel-snap left" title="좌측 패널 접기" onClick={() => setLeftPanelOpen(false)}>
               <PanelLeftClose size={15} />
             </button>
-            <LayerPanel adminGeoJson={adminGeoJson} />
+            <LayerPanel adminGeoJson={adminGeoJson} industrialParks={industrialParks} />
           </div>
         ) : (
           <button className="panel-rail left-rail" title="좌측 패널 펼치기" onClick={() => setLeftPanelOpen(true)}>
@@ -123,7 +125,12 @@ export default function App() {
           </button>
         )}
         <div className="center-stage">
-          <MapCanvas onAdminDataLoaded={setAdminGeoJson} onStatusChange={setStatus} mapElementRef={mapElementRef} />
+          <MapCanvas
+            onAdminDataLoaded={setAdminGeoJson}
+            onIndustrialParksLoaded={setIndustrialParks}
+            onStatusChange={setStatus}
+            mapElementRef={mapElementRef}
+          />
         </div>
         {rightPanelOpen ? (
           <div className="panel-slot">
